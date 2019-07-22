@@ -71,7 +71,7 @@ class CommentNet(nn.Module):
 
     def forward(self, seq):
         emb = self.emb(seq)
-        emb = self.dropout_seq(emb.transpose(1,2).unsqueeze(-1)).squeeze().transpose(1,2)
+        emb = self.dropout_seq(emb.transpose(1,2).unsqueeze(-1)).squeeze(-1).transpose(1,2)
         o_lstm, _ = self.lstm(emb)
         o_gru, _ = self.gru(o_lstm)
         # o_lstm_atten, _ = self.lstm_attention(o_lstm)

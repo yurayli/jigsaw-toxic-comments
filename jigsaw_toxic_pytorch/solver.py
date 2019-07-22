@@ -59,11 +59,18 @@ class NetSolver(object):
         else:
             self.start_lrs = [start_lr] * n_groups
 
+        if isinstance(end_lr, list) or isinstance(end_lr, tuple):
+            if len(end_lr) != n_groups:
+                raise ValueError("expected {} max_lr, got {}".format(n_groups, len(end_lr)))
+            self.end_lrs = list(end_lr)
+        else:
+            self.end_lrs = [end_lr] * n_groups
+
         curr_lrs = self.start_lrs*1
         for param_group, lr in zip(self.optimizer.param_groups, curr_lrs):
             param_group['lr'] = lr
 
-        n, lrs_log, loss_log = 0, [], []
+        n, lrs_logs, loss_log = 0, [], []
 
         for e in range(epochs):
             self.model.train()
@@ -73,7 +80,7 @@ class NetSolver(object):
                 loss.backward()
                 self.optimizer.step()
 
-                lrs_log.append(curr_lrs[-1])
+                lrs_logs.append(curr_lrs)
                 loss_log.append(loss.item())
 
                 # update best loss
@@ -83,9 +90,9 @@ class NetSolver(object):
                     if loss.item() < best_loss:
                         best_loss, n_best = loss.item(), n
 
-                # update lr per iter
+                # update lr per iter with exponential schedule
                 n += 1
-                curr_lrs = [lr * (end_lr/lr) ** (n/num_it) for lr in self.start_lrs]
+                curr_lrs = [lr * (end_lr/lr) ** (n/num_it) for lr, end_lr in zip(self.start_lrs, self.end_lrs)]
                 for param_group, lr in zip(self.optimizer.param_groups, curr_lrs):
                     param_group['lr'] = lr
 
@@ -93,8 +100,8 @@ class NetSolver(object):
                 if n == num_it or (stop_div and (loss.item() > 4*best_loss or torch.isnan(loss))):
                     break
 
-        print('minimum loss {}, at lr {}'.format(best_loss, lrs_log[n_best]))
-        return lrs_log, loss_log
+        print('minimum loss {}, at lr {}'.format(best_loss, lrs_logs[n_best]))
+        return lrs_logs, loss_log
 
 
     def train(self, loaders, epochs):
